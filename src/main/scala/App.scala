@@ -1,6 +1,8 @@
 package com.novoda
 
-import com.android.ddmlib.{AndroidDebugBridge => j_ADB, IDevice}
+import com.android.ddmlib.AndroidDebugBridge.{IDeviceChangeListener, IDebugBridgeChangeListener, IClientChangeListener}
+import com.android.ddmlib.{AndroidDebugBridge, IDevice, Client}
+import java.util.concurrent.{TimeUnit, CountDownLatch}
 
 
 class App extends xsbti.AppMain {
@@ -11,22 +13,56 @@ class App extends xsbti.AppMain {
 
 object App {
 
-  def asString(device: IDevice): String = {
-    val serial = device.getSerialNumber
-    val ip = device.getProperty("net.gprs.local-ip")
-    val hostname = device.getProperty("net.hostname")
-    val sdk = device.getProperty("ro.build.version.release")
-    val manufacturer = device.getProperty("ro.product.manufacturer")
-    val model = device.getProperty("ro.product.model")
-    s"$serial\t\t$ip\t\t$hostname\t\t$sdk\t\t$manufacturer\t\t$model"
+  val latch: CountDownLatch = new CountDownLatch(1)
+
+  val clientChangeListener = new IClientChangeListener {
+    def clientChanged(client: Client, index: Int) {
+    }
   }
 
+  val debugBridgeListener = new IDebugBridgeChangeListener {
+    def bridgeChanged(bridge: AndroidDebugBridge) {
+    }
+  }
+
+  val deviceChangeListener = new IDeviceChangeListener {
+    def deviceConnected(device: IDevice) {
+    }
+
+    def deviceDisconnected(device: IDevice) {
+    }
+
+    def deviceChanged(device: IDevice, changeMask: Int) {
+      latch.countDown()
+    }
+  }
+
+
+  def asString(device: IDevice): String = {
+    val serial = device.getSerialNumber
+    val ip = device.getProperty("dhcp.wlan0.ipaddress")
+    val hostname = device.getProperty("net.hostname")
+    val release = device.getProperty("ro.build.version.release")
+    val sdk = device.getProperty("ro.build.version.sdk")
+    val manufacturer = device.getProperty("ro.product.manufacturer")
+    val model = device.getProperty("ro.product.model")
+    s"$serial\t\t$sdk\t\t$release\t\t$hostname\t\t$manufacturer\t\t$model\t\t$ip"
+  }
+
+
   def run(args: Array[String]): Int = {
-    j_ADB.initIfNeeded(false)
-    val adb = j_ADB.createBridge
+    AndroidDebugBridge.addClientChangeListener(clientChangeListener)
+    AndroidDebugBridge.addDebugBridgeChangeListener(debugBridgeListener)
+    AndroidDebugBridge.addDeviceChangeListener(deviceChangeListener)
+
+    AndroidDebugBridge.initIfNeeded(false)
+    val adb = AndroidDebugBridge.createBridge
+
+    latch.await(1, TimeUnit.SECONDS)
     val devices = adb.getDevices
-    j_ADB.getBridge.getDevices.foreach(d => println("-> " + asString(d)))
-    j_ADB.terminate()
+
+    devices.foreach(d => println(asString(d)))
+    AndroidDebugBridge.terminate()
     0
   }
 
@@ -37,19 +73,6 @@ object App {
   def main(args: Array[String]) {
     run(args)
   }
-
-  implicit class AndroidDebugBridge(original: j_ADB) {
-
-    lazy val adb = {
-      j_ADB.init(false)
-      j_ADB.createBridge()
-    }
-
-    def devices = adb.getDevices
-
-
-  }
-
 }
 
 /**

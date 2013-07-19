@@ -10,7 +10,6 @@ object DabBuild extends Build {
     base = file("."),
     settings = Project.defaultSettings ++ conscript.Harness.conscriptSettings ++ Seq(
       name := "dab",
-
       organization := "com.novoda",
       version := "0.1-SNAPSHOT",
       scalaVersion := "2.10.2",
