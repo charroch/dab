@@ -1,8 +1,9 @@
 [app]
   version: 0.1.0
   org: com.novoda
-  name: dab
+  name: dab_2.10
   class: com.novoda.App
+  cross-versioned: false
 [scala]
   version: 2.10.2
 [repositories]
