@@ -73,7 +73,7 @@ object App {
     latch.await(1, TimeUnit.SECONDS)
     val devices = adb.getDevices
 
-    devices.foreach(d => println(asString(d)))
+    //devices.foreach(d => println(asString(d)))
 
     println(Tabulator.format(List("serial", "sdk", "release", "hostname", "manufacturer", "model", "ip") +: devices.map(asStringList)))
 
