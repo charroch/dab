@@ -38,6 +38,18 @@ object App {
   }
 
 
+  def asStringList(device: IDevice): List[String] = {
+    val serial = device.getSerialNumber
+    val ip = device.getProperty("dhcp.wlan0.ipaddress")
+    val hostname = device.getProperty("net.hostname")
+    val release = device.getProperty("ro.build.version.release")
+    val sdk = device.getProperty("ro.build.version.sdk")
+    val manufacturer = device.getProperty("ro.product.manufacturer")
+    val model = device.getProperty("ro.product.model")
+    List(serial, sdk, release, hostname, manufacturer, model, ip)
+  }
+
+
   def asString(device: IDevice): String = {
     val serial = device.getSerialNumber
     val ip = device.getProperty("dhcp.wlan0.ipaddress")
@@ -62,6 +74,9 @@ object App {
     val devices = adb.getDevices
 
     devices.foreach(d => println(asString(d)))
+
+    println(Tabulator.format(List("serial", "sdk", "release", "hostname", "manufacturer", "model", "ip") +: devices.map(asStringList)))
+
     AndroidDebugBridge.terminate()
     0
   }
@@ -73,6 +88,35 @@ object App {
   def main(args: Array[String]) {
     run(args)
   }
+
+  object Tabulator {
+    def format(table: Seq[Seq[Any]]) = table match {
+      case Seq() => ""
+      case _ =>
+        val sizes = for (row <- table) yield (for (cell <- row) yield if (cell == null) 0 else cell.toString.length)
+        val colSizes = for (col <- sizes.transpose) yield col.max
+        val rows = for (row <- table) yield formatRow(row, colSizes)
+        formatRows(rowSeparator(colSizes), rows)
+    }
+
+    def formatRows(rowSeparator: String, rows: Seq[String]): String = (
+      rowSeparator ::
+        rows.head ::
+        rowSeparator ::
+        rows.tail.toList :::
+        rowSeparator ::
+        List()).mkString("\n")
+
+    def formatRow(row: Seq[Any], colSizes: Seq[Int]) = {
+      val cells = (for ((item, size) <- row.zip(colSizes)) yield if (size == 0) "" else ("%" + size + "s").format(item))
+      cells.mkString("|", "|", "|")
+    }
+
+    def rowSeparator(colSizes: Seq[Int]) = colSizes map {
+      "-" * _
+    } mkString("+", "+", "+")
+  }
+
 }
 
 /**
